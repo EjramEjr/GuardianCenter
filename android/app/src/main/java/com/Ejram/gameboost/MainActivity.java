@@ -1,12 +1,8 @@
 package com.Ejram.gameboost;
-
-import android.os.Bundle;
-import com.getcapacitor.BridgeActivity;
-
+import android.os.Bundle; import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(GuardianEngine.class); // المحرك الحقيقي فقط
+    @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        registerPlugin(GuardianEngine.class);
     }
 }
