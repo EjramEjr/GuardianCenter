@@ -6,8 +6,7 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(GuardianPlugin.class);
-        registerPlugin(GuardianEngine.class); // تسجيل المحرك الجديد
+        registerPlugin(GuardianEngine.class); // المحرك الحقيقي فقط
         super.onCreate(savedInstanceState);
     }
 }
