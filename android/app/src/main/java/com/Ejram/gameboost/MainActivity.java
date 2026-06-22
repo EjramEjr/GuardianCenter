@@ -7,6 +7,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(GuardianPlugin.class);
+        registerPlugin(GuardianEngine.class); // تسجيل المحرك الجديد
         super.onCreate(savedInstanceState);
     }
 }
