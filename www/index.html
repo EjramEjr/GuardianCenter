@@ -41,7 +41,7 @@
         <div class="box-container">
             <i class="fas fa-shield-halved" style="font-size: 60px; color: var(--primary); margin-bottom: 10px;"></i>
             <h2 style="margin-bottom: 5px;">Guardian Center</h2>
-            <p style="color: var(--success); font-size: 12px; margin-bottom: 25px; font-weight: bold;">v4.0 Pro</p>
+            <p style="color: var(--success); font-size: 12px; margin-bottom: 25px; font-weight: bold;">v5.0 Stable</p>
             
             <div class="input-group"><input type="email" id="logEmail" placeholder="البريد الإلكتروني" value="ejram.tp@gmail.com"></div>
             <div class="input-group"><input type="password" id="logPass" placeholder="كلمة المرور" value="EjramGamal"></div>
@@ -123,7 +123,6 @@
     </div>
 
     <script>
-        // مفتاح فايربيس الحقيقي المحمي 
         const firebaseConfig = {
             apiKey: "AIzaSyALz6MYVTOCxrtW3kG_hC_48kWYHlF4kO4",
             authDomain: "ejram-6b3b5.firebaseapp.com",
@@ -137,13 +136,12 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
 
-        // ربط محرك الجافا بأمان تام لمنع الانهيار
         let GuardianEngine = null;
         try {
             if (window.Capacitor && window.Capacitor.registerPlugin) {
                 GuardianEngine = Capacitor.registerPlugin('GuardianEngine');
             }
-        } catch(e) { console.error("Plugin Error", e); }
+        } catch(e) {}
 
         function showNotif(msg) { 
             const el = document.getElementById('notification'); 
@@ -152,14 +150,15 @@
             setTimeout(() => el.classList.remove('show'), 3000); 
         }
 
+        // الحل الجذري للإخفاء والظهور (استخدام classList فقط بدلاً من style)
         function showRegister() { 
-            document.getElementById('authScreen').style.display = 'none'; 
-            document.getElementById('registerScreen').style.display = 'flex'; 
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.remove('hidden');
         }
 
         function showLogin() { 
-            document.getElementById('registerScreen').style.display = 'none'; 
-            document.getElementById('authScreen').style.display = 'flex'; 
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('authScreen').classList.remove('hidden');
         }
 
         function login() {
@@ -183,12 +182,12 @@
 
         function logout() { auth.signOut(); }
 
-        // المراقب المحصن (لو فشل فايربيس هيدخلك كلاعب إجباري ومش هيعلقك)
         auth.onAuthStateChanged(async user => {
             if (user) {
-                document.getElementById('authScreen').style.display = 'none'; 
-                document.getElementById('registerScreen').style.display = 'none';
-                document.getElementById('appContainer').style.display = 'block';
+                // إظهار التطبيق بالطريقة الصحيحة
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('registerScreen').classList.add('hidden');
+                document.getElementById('appContainer').classList.remove('hidden');
                 
                 let role = 'child';
                 if (user.email === 'ejram.tp@gmail.com') role = 'admin';
@@ -196,14 +195,13 @@
                 try {
                     const doc = await db.collection('users').doc(user.uid).get();
                     if (doc.exists) role = doc.data().role || 'child';
-                } catch(e) {
-                    console.log("Firestore read failed, fallback to default role");
-                }
+                } catch(e) {}
                 
                 setupUI(role);
             } else {
-                document.getElementById('appContainer').style.display = 'none'; 
-                document.getElementById('authScreen').style.display = 'flex';
+                document.getElementById('appContainer').classList.add('hidden');
+                document.getElementById('registerScreen').classList.add('hidden');
+                document.getElementById('authScreen').classList.remove('hidden');
             }
         });
 
