@@ -114,7 +114,7 @@
     </div>
     <script>
         const firebaseConfig = { apiKey: "AIzaSyALz6MYVTOCxrtW3kG_hC_48kWYHlF4kO4", authDomain: "ejram-6b3b5.firebaseapp.com", projectId: "ejram-6b3b5", storageBucket: "ejram-6b3b5.appspot.com", messagingSenderId: "28357002125", appId: "1:28357002125:web:bdd7d3418e8ec2b2c533c4" };
-        firebase.initializeApp(firebaseConfig); const db = firebase.firestore(); const auth = firebase.auth();
+        firebase.initializeApp(firebaseConfig); const db = firebase.firestore(); const auth = firebase.auth(); if(window.Capacitor){ window.Capacitor.Plugins = window.Capacitor.Plugins || {}; window.Capacitor.Plugins.GuardianEngine = Capacitor.registerPlugin("GuardianEngine"); }
 
         // السطر السحري اللي كان ناقص عشان الجافاسكريبت يتصل بالجافا الأصلية!
         const GuardianNative = window.Capacitor ? Capacitor.registerPlugin('GuardianEngine') : null;
