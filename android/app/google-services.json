@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "28357002125",
+    "project_id": "ejram-6b3b5",
+    "storage_bucket": "ejram-6b3b5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:28357002125:android:bdd7d3418e8ec2b2c533c4",
+        "android_client_info": {
+          "package_name": "com.Ejram.gameboost"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALz6MYVTOCxrtW3kG_hC_48kWYHlF4kO4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
