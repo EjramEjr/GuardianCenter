@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Guardian Center Pro</title>
+    <title>Guardian Control</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -19,47 +19,50 @@
         .input-group input { width: 100%; padding: 15px; border-radius: 12px; background: var(--darker); border: 1px solid var(--border); color: white; margin-bottom: 15px; outline: none; }
         .btn-primary { width: 100%; padding: 15px; background: linear-gradient(135deg, var(--primary), #0099cc); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
         .btn-danger { background: linear-gradient(135deg, var(--secondary), #cc0000); }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; background: rgba(15,20,25,0.8); padding: 15px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 20px; }
+        .hidden { display: none !important; }
         .notification { position: fixed; top: 20px; left: 50%; transform: translate(-50%, -150%); background: var(--success); color: white; padding: 15px 30px; border-radius: 30px; font-weight: bold; transition: 0.4s; z-index: 99999; }
         .notification.show { transform: translate(-50%, 0); }
-        .hidden { display: none !important; }
-        .header-bar { display: flex; justify-content: space-between; align-items: center; background: rgba(15,20,25,0.8); padding: 15px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 20px; }
     </style>
 </head>
 <body>
     <div class="notification" id="notification">رسالة</div>
 
+    <!-- الدخول -->
     <div class="full-screen" id="authScreen">
         <div class="box-container">
             <i class="fas fa-shield-halved" style="font-size: 50px; color: var(--primary); margin-bottom: 15px;"></i>
             <h2>Guardian Center</h2>
-            <div class="input-group" style="margin-top: 20px;"><input type="email" id="logEmail" placeholder="البريد الإلكتروني" value="ejram.tp@gmail.com"></div>
+            <p style="color: var(--success); font-size: 12px; margin-bottom: 20px;">النواة النظيفة (Native Core)</p>
+            <div class="input-group"><input type="email" id="logEmail" placeholder="البريد الإلكتروني" value="ejram.tp@gmail.com"></div>
             <div class="input-group"><input type="password" id="logPass" placeholder="كلمة المرور" value="EjramGamal"></div>
             <button class="btn-primary" onclick="login()">تسجيل الدخول</button>
-            <button class="btn-primary" style="background: transparent; border: 1px solid var(--border); color: #8b949e;" onclick="document.getElementById('authScreen').classList.add('hidden'); document.getElementById('registerScreen').classList.remove('hidden');">إنشاء حساب جديد</button>
-        </div>
-    </div>
-
-    <div class="full-screen hidden" id="registerScreen">
-        <div class="box-container">
-            <h2>إنشاء حساب</h2>
-            <div class="input-group" style="margin-top: 20px;"><input type="email" id="regEmail" placeholder="البريد"></div>
-            <div class="input-group"><input type="password" id="regPass" placeholder="كلمة المرور"></div>
-            <button class="btn-primary" onclick="register()">إنشاء الحساب</button>
-            <button class="btn-primary" style="background: transparent; border: 1px solid var(--border); color: #8b949e;" onclick="document.getElementById('registerScreen').classList.add('hidden'); document.getElementById('authScreen').classList.remove('hidden');">رجوع</button>
         </div>
     </div>
 
     <div id="appContainer" class="hidden" style="padding: 20px; max-width: 800px; margin: auto;">
         <div class="header-bar">
-            <h2 id="pageTitle" style="font-size: 16px;">Gamer VIP</h2>
+            <h2 id="pageTitle" style="font-size: 16px;">الرئيسية</h2>
             <button class="btn-danger" style="padding: 8px 15px; border-radius: 8px; border: none; color: white; cursor:pointer;" onclick="logout()">خروج</button>
         </div>
-        
-        <div style="background: rgba(0,212,255,0.1); border: 2px solid var(--primary); border-radius: 20px; padding: 25px 20px; text-align: center;">
-            <i class="fas fa-rocket" style="font-size: 40px; color: var(--primary); margin-bottom: 10px;"></i>
-            <h2>Gamer VIP Booster</h2>
-            <p style="font-size: 12px; color: #8b949e; margin-top: 5px;">يجب إعطاء الصلاحيات لتعزيز الألعاب</p>
-            <button class="btn-primary" id="boostBtn" style="width: auto; padding: 12px 35px; border-radius: 30px; margin-top: 15px;" onclick="runPermissionWizard()">إعطاء الصلاحيات (مطلوب)</button>
+
+        <!-- قسم المشرف / الأب -->
+        <div id="adminSection" class="hidden">
+            <div style="background: rgba(46, 213, 115, 0.1); border: 2px solid var(--success); border-radius: 20px; padding: 25px 20px; text-align: center;">
+                <i class="fas fa-user-shield" style="font-size: 40px; color: var(--success); margin-bottom: 10px;"></i>
+                <h2>لوحة المشرف والأب</h2>
+                <p style="color: #8b949e; font-size: 14px;">أهلاً بك يا مدير. جاري تجهيز أدوات الرقابة.</p>
+            </div>
+        </div>
+
+        <!-- قسم الطفل (طلب الصلاحيات الحقيقية) -->
+        <div id="childSection" class="hidden">
+            <div style="background: rgba(0,212,255,0.1); border: 2px solid var(--primary); border-radius: 20px; padding: 25px 20px; text-align: center;">
+                <i class="fas fa-mobile-alt" style="font-size: 40px; color: var(--primary); margin-bottom: 10px;"></i>
+                <h2>جهاز الطفل</h2>
+                <p style="font-size: 12px; color: #8b949e; margin-bottom: 15px;">يجب تفعيل الصلاحيات لربط هذا الجهاز بلوحة الأب</p>
+                <button class="btn-primary" id="boostBtn" onclick="activatePermissions()">تفعيل صلاحيات الرقابة الأبوية</button>
+            </div>
         </div>
     </div>
 
@@ -70,48 +73,49 @@
         function showNotif(msg) { const el = document.getElementById('notification'); el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 3000); }
         function login() { auth.signInWithEmailAndPassword(document.getElementById('logEmail').value, document.getElementById('logPass').value).catch(e => showNotif('بيانات خاطئة')); }
         function logout() { auth.signOut(); }
-        
-        function register() {
-            auth.createUserWithEmailAndPassword(document.getElementById('regEmail').value, document.getElementById('regPass').value).then(cred => {
-                db.collection('users').doc(cred.user.uid).set({ email: document.getElementById('regEmail').value, role: 'child' });
-                showNotif('تم الإنشاء'); document.getElementById('registerScreen').classList.add('hidden'); document.getElementById('authScreen').classList.remove('hidden');
-            });
-        }
 
-        auth.onAuthStateChanged(user => {
+        auth.onAuthStateChanged(async user => {
             if (user) {
                 document.getElementById('authScreen').classList.add('hidden'); 
                 document.getElementById('appContainer').classList.remove('hidden');
+                
+                document.getElementById('adminSection').classList.add('hidden');
+                document.getElementById('childSection').classList.add('hidden');
+
+                // التوجيه الصحيح: لو الإيميل بتاعك، افتح لوحة المشرف
+                if (user.email === 'ejram.tp@gmail.com') {
+                    document.getElementById('pageTitle').textContent = 'لوحة التحكم (المشرف)';
+                    document.getElementById('adminSection').classList.remove('hidden');
+                } else {
+                    document.getElementById('pageTitle').textContent = 'جهاز خاضع للرقابة';
+                    document.getElementById('childSection').classList.remove('hidden');
+                }
             } else {
                 document.getElementById('appContainer').classList.add('hidden'); 
                 document.getElementById('authScreen').classList.remove('hidden');
             }
         });
 
-        // الدالة التي تفتح الإعدادات يدوياً وبشكل قانوني
-        async function runPermissionWizard() {
+        async function activatePermissions() {
+            const btn = document.getElementById('boostBtn');
             if (window.Capacitor && window.Capacitor.registerPlugin) {
-                const engine = Capacitor.registerPlugin('GuardianEngine');
-                const btn = document.getElementById('boostBtn');
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحويل للإعدادات...';
-                
-                showNotif('يرجى تفعيل الصلاحيات من شاشة الإعدادات التي ستظهر الآن');
-                
                 try {
-                    // فتح إمكانية الوصول
-                    await engine.openAccessibilitySettings();
+                    const engine = Capacitor.registerPlugin('GuardianEngine');
+                    showNotif('جاري تحويلك لإعدادات النظام...');
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التفعيل...';
                     
-                    // فتح مسؤول الجهاز بعد ثانية
+                    // استدعاء الجافا الحقيقي
+                    await engine.openAccessibilitySettings();
                     setTimeout(() => {
                         engine.openDeviceAdminSettings();
                         btn.innerHTML = '<i class="fas fa-check"></i> تم التفعيل';
                         btn.style.background = 'var(--success)';
                     }, 1500);
                 } catch(e) {
-                    showNotif('حدث خطأ');
+                    showNotif('حدث خطأ داخلي في الاتصال');
                 }
             } else {
-                showNotif('تعمل هذه الميزة في تطبيق الأندرويد فقط');
+                showNotif('تعمل هذه الميزة من داخل تطبيق الأندرويد فقط');
             }
         }
     </script>

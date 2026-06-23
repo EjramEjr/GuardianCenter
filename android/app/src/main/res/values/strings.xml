@@ -1,8 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">Guardian Center</string>
-    <string name="accessibility_service_description">Guardian Center - خدمة الأداء المتقدم للتحكم في الألعاب.</string>
-    <string name="guardian_channel_name">Guardian Protection</string>
-    <string name="guardian_channel_desc">يحافظ على الأداء نشطاً في الخلفية</string>
-    <string name="screen_capture_channel_name">تسجيل الشاشة</string>
-    <string name="screen_capture_channel_desc">بث مباشر لشاشة اللعب</string>
+    <string name="title_activity_main">Guardian Center</string>
+    <string name="package_name">com.Ejram.gameboost</string>
+    <string name="custom_url_scheme">com.Ejram.gameboost</string>
 </resources>
