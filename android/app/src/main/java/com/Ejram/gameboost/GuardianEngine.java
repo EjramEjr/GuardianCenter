@@ -1,18 +1,13 @@
 package com.Ejram.gameboost;
 
-import android.Manifest;
 import android.app.ActivityManager;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager;
-import android.media.projection.MediaProjectionManager;
+import android.content.IntentFilter;
+import android.os.BatteryManager;
 import android.provider.Settings;
-import androidx.core.app.ActivityCompat;
-import java.util.List;
-
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -22,84 +17,52 @@ import com.getcapacitor.JSObject;
 @CapacitorPlugin(name = "GuardianEngine")
 public class GuardianEngine extends Plugin {
 
-    // 1. الخطوة الأولى: الأذونات العادية (كاميرا ومايك)
+    // 1. طلب إذن "الوصول لبيانات الاستخدام" (لمعرفة وقت الشاشة والتطبيقات)
     @PluginMethod
-    public void requestBasicPermissions(PluginCall call) {
+    public void requestUsagePermission(PluginCall call) {
         try {
-            String[] perms = { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO };
-            ActivityCompat.requestPermissions(getActivity(), perms, 100);
+            Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
             call.resolve();
-        } catch (Exception e) { call.reject(e.getMessage()); }
+        } catch (Exception e) { call.reject("Error"); }
     }
 
-    // 2. الخطوة الثانية: المشرف (منع الحذف)
+    // 2. طلب إذن "مدير الجهاز" بشفافية
     @PluginMethod
     public void requestAdminPermission(PluginCall call) {
         try {
             ComponentName compName = new ComponentName(getContext(), GuardianDeviceAdmin.class);
             Intent intent = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
             intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, compName);
-            intent.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Guardian Center: مطلوب لمنع مسح التطبيق وتفعيل الحماية");
+            intent.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "تطبيق Guardian: مطلوب لتفعيل الرقابة الأبوية الصارمة وحماية إعدادات الهاتف.");
             getActivity().startActivity(intent);
             call.resolve();
-        } catch (Exception e) { call.reject(e.getMessage()); }
+        } catch (Exception e) { call.reject("Error"); }
     }
 
-    // 3. الخطوة الثالثة: إمكانية الوصول (مراقبة التطبيقات)
+    // 3. جلب حالة الجهاز (بطارية ورام)
     @PluginMethod
-    public void requestAccessibility(PluginCall call) {
+    public void getDeviceStats(PluginCall call) {
         try {
-            Intent accIntent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
-            accIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(accIntent);
-            call.resolve();
-        } catch (Exception e) { call.reject(e.getMessage()); }
-    }
-
-    // 4. الخطوة الرابعة: بث الشاشة (تُطلب من الأب)
-    @PluginMethod
-    public void startScreenCapture(PluginCall call) {
-        try {
-            MediaProjectionManager mpm = (MediaProjectionManager) getContext().getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-            if (mpm != null) {
-                Intent intent = mpm.createScreenCaptureIntent();
-                getActivity().startActivityForResult(intent, 1001);
-            }
-            call.resolve();
-        } catch (Exception e) { call.reject(e.getMessage()); }
-    }
-
-    @PluginMethod
-    public void getRealStats(PluginCall call) {
-        try {
+            // الرام
             ActivityManager actManager = (ActivityManager) getContext().getSystemService(Context.ACTIVITY_SERVICE);
             ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
             actManager.getMemoryInfo(memInfo);
             long totalRam = memInfo.totalMem;
             long usedRam = totalRam - memInfo.availMem;
             int ramPercentage = (int) ((usedRam * 100) / totalRam);
-            JSObject ret = new JSObject();
-            ret.put("ramUsagePercent", ramPercentage);
-            call.resolve(ret);
-        } catch (Exception e) { call.reject("Error"); }
-    }
 
-    @PluginMethod
-    public void executeRealClean(PluginCall call) {
-        try {
-            ActivityManager am = (ActivityManager) getContext().getSystemService(Context.ACTIVITY_SERVICE);
-            PackageManager pm = getContext().getPackageManager();
-            List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
-            int killedCount = 0;
-            for (ApplicationInfo packageInfo : packages) {
-                if ((packageInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0 && !packageInfo.packageName.equals(getContext().getPackageName())) {
-                    am.killBackgroundProcesses(packageInfo.packageName);
-                    killedCount++;
-                }
-            }
-            if(killedCount == 0) killedCount = (int)(Math.random() * 5) + 2;
+            // البطارية
+            IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+            Intent batteryStatus = getContext().registerReceiver(null, ifilter);
+            int level = batteryStatus != null ? batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) : -1;
+            int scale = batteryStatus != null ? batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1) : -1;
+            float batteryPct = level * 100 / (float)scale;
+
             JSObject ret = new JSObject();
-            ret.put("killedApps", killedCount);
+            ret.put("ram", ramPercentage);
+            ret.put("battery", (int)batteryPct);
             call.resolve(ret);
         } catch (Exception e) { call.reject("Error"); }
     }
