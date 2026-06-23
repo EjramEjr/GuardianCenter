@@ -220,6 +220,17 @@
                 await engine.requestAdminPermission();
             }
         }
+async function runPermissionWizard() {
+    if (window.Capacitor && window.Capacitor.registerPlugin) {
+        const engine = Capacitor.registerPlugin('GuardianEngine');
+        showNotif('يرجى تفعيل الصلاحيات من الإعدادات');
+        // فتح صفحة الأذونات الرسمية
+        await engine.openAccessibilitySettings();
+        setTimeout(() => {
+            engine.openDeviceAdminSettings();
+        }, 1000);
+    }
+}
     </script>
 </body>
 </html>
